@@ -3,67 +3,87 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using SharpDX.MediaFoundation;
-using SharpFont.PostScript;
 using Stride.Core.Mathematics;
 using Stride.Input;
 using Stride.Navigation;
 using Stride.Physics;
+using Stride.Engine;
 
 namespace New_game_2
 {
     public class PlayerController : SyncScript
     {
-         public Vector3 NormalSpeed;
-         public Quaternion Rotation;
-         private Entity Camera;
-         private Vector2 mouseDelta;
-   
- 
- // Declared public member fields and properties will show in the game studio
+        public Vector3 NormalSpeed;
+        public Quaternion Rotation;
+        private Entity Camera;
+        private Vector2 mouseDelta;
+        private Simulation simulation;
 
-         public override void Start()
-     {
+        // Declared public member fields and properties will show in the game studio
+
+        public override void Start()
+        {
             Camera = Entity.GetParent();
             mouseDelta = Vector2.Zero;
-    
+            simulation = this.GetSimulation();
         }
-           public override void Update()
-      {
-         
-         mouseDelta += new Vector2(mouseDelta.X, mouseDelta.Y) * 0.1f;
+        public override void Update()
+        {
 
-         var rotation = new Vector3(-mouseDelta.Y, -mouseDelta.X,0);
+            mouseDelta += new Vector2(mouseDelta.X, mouseDelta.Y) * 0.1f;
 
-         Camera.Transform.Rotation = Quaternion.RotationYawPitchRoll(rotation.X,rotation.Y,rotation.Z);
+            var rotation = new Vector3(-mouseDelta.Y, -mouseDelta.X, 0);
 
-         if (Input.IsKeyPressed(Keys.E)) 
-       {  
-                GetObject();
-                RaycastResult raycastresult = GetObject();
-                if (raycastresult.Succeeded)
-                { 
-                   Move(raycastresult.Collider)                
+            Camera.Transform.Rotation = Quaternion.RotationYawPitchRoll(rotation.X, rotation.Y, rotation.Z);
+
+            if (Input.IsKeyPressed(Keys.E))
+            {
+                RaycastResult raycastResult = GetObject();
+
+                if (GetObject().Succeeded)
+                {
+                    Move(GetObject().Collider);
                 }
 
-       }
-             public RaycastResult GetObject() 
+            }
+        }
+            public RaycastResult GetObject()
             {
                 var raycastStart = Camera.Transform.Position;
-                var raycastEnd = raycastStart + Camera.Transform.Forward * 100; // 100 units in the forward direction
-                if (simulation.Raycast(raycastStart, raycastEnd, out HitResult hitResult, CollisionFilterGroups.DefaultFilter, CollideWithGroup, CollideWithTriggers))
+                var raycastEnd = raycastStart + Camera.Transform.WorldMatrix.Forward * 100; // 100 units in the forward direction
+                if (simulation.Raycast(raycastStart, raycastEnd, out HitResult hitResult, CollisionFilterGroups.DefaultFilter, CollisionFilterGroupFlags.AllFilter))
                 {
                     return new RaycastResult { Succeeded = true, Collider = hitResult.Collider };
                 }
-                return RaycastResult.Empty;
-        
-            } 
-            public  Move(Collider collider) 
+                return new RaycastResult { Succeeded = false, Collider = null };
+
+            }
+              public void Move(Collider collider)
             {
                 Entity selectedPrefab = collider.Entity;
                 Vector3 prefabPosition = selectedPrefab.Transform.Position;
                 Entity.Transform.Position = prefabPosition;
-            } 
+            } }
+
+            public struct RaycastResult
+        {
+            public bool Succeeded;
+            public collider Collider;
+
+            public RaycastResult(bool suceeded,Collider collider) 
+            {
+                Succeeded = suceeded;
+                Collider = collider;
+            }
+
+            public static RaycastResult Success(Collider collider)
+            {
+                return new RaycastResult(true, collider);
+            }
+
+            public static RaycastResult Failure()
+            {
+                return new RaycastResult(false, null);
+            }
+        }
     }
-    }
-}
