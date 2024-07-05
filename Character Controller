@@ -8,77 +8,97 @@ using Stride.Input;
 using Stride.Navigation;
 using Stride.Physics;
 using Stride.Engine;
+using Stride.Physics.Shapes;
+
 
 namespace New_game_2
 {
     public class PlayerController : SyncScript
     {
-        public Vector3 NormalSpeed;
-        public Quaternion Rotation;
-        private Entity Camera;
-        private Vector2 mouseDelta;
-        private Simulation simulation;
+        private Vector3 cameraRotation;
+        public float MouseSpeed = 0.5f;
+        public bool InvertY = false;
+        public float MaxCamAngle = -50f;
+        public float MinCamAngle = 50f;
+        public Vector2 MaxCameraAngles;
+        public Entity Camera;
 
+
+
+        public Simulation simulation;
+        public Entity selectedPrefab;
+        public PhysicsComponent Collider;
         // Declared public member fields and properties will show in the game studio
 
         public override void Start()
         {
-            Camera = Entity.GetParent();
-            mouseDelta = Vector2.Zero;
+            MaxCameraAngles = new Vector2(MathUtil.DegreesToRadians(MaxCamAngle), MathUtil.DegreesToRadians(MinCamAngle));
+            cameraRotation = Entity.Transform.RotationEulerXYZ;
             simulation = this.GetSimulation();
+
         }
         public override void Update()
         {
+            Input.LockMousePosition();
 
-            mouseDelta += new Vector2(mouseDelta.X, mouseDelta.Y) * 0.1f;
+            var mouseMovement = Input.MouseDelta * MouseSpeed;
 
-            var rotation = new Vector3(-mouseDelta.Y, -mouseDelta.X, 0);
+            cameraRotation.Y += -mouseMovement.X;
 
-            Camera.Transform.Rotation = Quaternion.RotationYawPitchRoll(rotation.X, rotation.Y, rotation.Z);
+            cameraRotation.X += InvertY ? -mouseMovement.Y : mouseMovement.Y;
+            cameraRotation.X = MathUtil.Clamp(cameraRotation.X,MaxCameraAngles.X,MaxCameraAngles.Y);
 
-            if (Input.IsKeyPressed(Keys.E))
+            Entity.Transform.Rotation = Quaternion.RotationY(cameraRotation.Y);
+
+            Camera.Transform.Rotation = Quaternion.RotationX(-cameraRotation.X);
+
+         
+            if (Input.IsKeyDown(Keys.E))
             {
                 RaycastResult raycastResult = GetObject();
 
                 if (GetObject().Succeeded)
                 {
-                    Move(GetObject().Collider);
+                    Move(GetObject().HitPrefab);
                 }
 
             }
         }
-            public RaycastResult GetObject()
-            {
-                var raycastStart = Camera.Transform.Position;
-                var raycastEnd = raycastStart + Camera.Transform.WorldMatrix.Forward * 100; // 100 units in the forward direction
-                if (simulation.Raycast(raycastStart, raycastEnd, out HitResult hitResult, CollisionFilterGroups.DefaultFilter, CollisionFilterGroupFlags.AllFilter))
-                {
-                    return new RaycastResult { Succeeded = true, Collider = hitResult.Collider };
-                }
-                return new RaycastResult { Succeeded = false, Collider = null };
 
+        public RaycastResult GetObject()
+        {
+            var raycastStart = Entity.Transform.Position;
+            var raycastEnd = raycastStart + Entity.Transform.WorldMatrix.Forward * 500; // 500 units in the forward direction
+
+            if (simulation.Raycast(raycastStart, raycastEnd, out HitResult hitResult, CollisionFilterGroups.DefaultFilter, CollisionFilterGroupFlags.AllFilter))
+            {
+                return new RaycastResult { Succeeded = true, HitPrefab = hitResult.Collider.Entity };
             }
-              public void Move(Collider collider)
-            {
-                Entity selectedPrefab = collider.Entity;
-                Vector3 prefabPosition = selectedPrefab.Transform.Position;
-                Entity.Transform.Position = prefabPosition;
-            } }
+            return new RaycastResult { Succeeded = false, HitPrefab = null };
 
-            public struct RaycastResult
+        }
+
+        public void Move(Entity hitPrefab)
+        {
+           
+            Vector3 prefabPosition = hitPrefab.Transform.Position;
+            Entity.Transform.Position = prefabPosition;
+        }
+
+        public struct RaycastResult
         {
             public bool Succeeded;
-            public collider Collider;
+            public Entity HitPrefab;
 
-            public RaycastResult(bool suceeded,Collider collider) 
+            public RaycastResult(bool suceeded, Entity hitPrefab)
             {
                 Succeeded = suceeded;
-                Collider = collider;
+                HitPrefab= hitPrefab;
             }
 
-            public static RaycastResult Success(Collider collider)
+            public static RaycastResult Success(Entity HitPrefab)
             {
-                return new RaycastResult(true, collider);
+                return new RaycastResult(true, HitPrefab);
             }
 
             public static RaycastResult Failure()
@@ -87,3 +107,6 @@ namespace New_game_2
             }
         }
     }
+}
+    
+
